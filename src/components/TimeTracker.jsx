@@ -223,8 +223,8 @@ const TimeTracker = () => {
               value={employeeId}
               onChange={handleInputChange(setEmployeeId)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md 
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 
-                         focus:border-transparent"
+                         focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]
+                         hover:border-[#ffc947] transition-colors"
               placeholder="Enter your employee ID"
               required
               disabled={isLoggedIn || loading}
@@ -241,8 +241,8 @@ const TimeTracker = () => {
               value={employeeName}
               onChange={handleInputChange(setEmployeeName)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md 
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 
-                         focus:border-transparent"
+                         focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]
+                         hover:border-[#ffc947] transition-colors"
               placeholder="Enter your full name"
               required
               disabled={isLoggedIn || loading}
@@ -253,9 +253,9 @@ const TimeTracker = () => {
             <button
               type="submit"
               disabled={loading || isLoggedIn}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md 
-                         hover:bg-blue-700 focus:outline-none focus:ring-2 
-                         focus:ring-blue-500 focus:ring-offset-2 
+              className="flex-1 bg-[#ffc947] text-[#202426] py-2 px-4 rounded-md 
+                         hover:bg-[#202426] hover:text-[#ffc947] focus:outline-none focus:ring-2 
+                         focus:ring-[#ffc947] focus:ring-offset-2 
                          disabled:opacity-50 disabled:cursor-not-allowed 
                          transition-colors"
             >
@@ -266,9 +266,9 @@ const TimeTracker = () => {
               type="button"
               onClick={handleLogout}
               disabled={loading || !isLoggedIn}
-              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md 
-                         hover:bg-red-700 focus:outline-none focus:ring-2 
-                         focus:ring-red-500 focus:ring-offset-2 
+              className="flex-1 bg-[#202426] text-[#ffc947] py-2 px-4 rounded-md 
+                         hover:bg-[#ffc947] hover:text-[#202426] focus:outline-none focus:ring-2 
+                         focus:ring-[#202426] focus:ring-offset-2 
                          disabled:opacity-50 disabled:cursor-not-allowed 
                          transition-colors"
             >
