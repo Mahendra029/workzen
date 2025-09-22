@@ -288,7 +288,7 @@ const TimeTracker = () => {
             Data is securely stored in Google Sheets
           </p>
            <p className="mt-4 text-xs text-gray-500 text-center">
-            &copy; {new Date().getFullYear()} Zenbeta Technology. All rights reserved.
+            &copy; {new Date().getFullYear()} Zenbeta Technologies. All rights reserved.
           </p>
           <p className="mt-1 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
             Developed by Mahendra &amp; Akshitha
