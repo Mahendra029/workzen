@@ -291,7 +291,7 @@ const TimeTracker = () => {
             Data is securely stored in Google Sheets
           </p>
            <p className="mt-2 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
-            @ Developed by Mahendra &amp; Akshitha
+            @ Developed by @Mahendra &amp; @Akshitha
           </p>
         </div>
       </div>
