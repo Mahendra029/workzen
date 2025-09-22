@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Toast from './Toast';
 
 const LoadingSpinner = () => (
   <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -13,6 +14,7 @@ const TimeTracker = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2uUBnqEaYLk60aylzeg1R14q1pjexg8xl4uGZIIATVc3Xt2-7nYocFXsedLyCjJFhzQ/exec';
 
@@ -72,6 +74,7 @@ const TimeTracker = () => {
 
     if (!employeeId.trim() || !employeeName.trim()) {
       setMessage('Please enter both Employee ID and Name');
+      setMessageType('error');
       return;
     }
 
@@ -104,12 +107,14 @@ const TimeTracker = () => {
         };
         localStorage.setItem('workZenSession', JSON.stringify(sessionData));
         setIsLoggedIn(true);
+        setMessageType('success');
         setMessage('Login successful! Time recorded.');
       } else {
         throw new Error(responseData.message || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
+      setMessageType('error');
       setMessage('Login request sent. Check sheet to confirm.');
       const sessionData = {
         employeeId: employeeId.trim(),
@@ -126,6 +131,7 @@ const TimeTracker = () => {
   const handleLogout = async () => {
     if (!isLoggedIn || !employeeId.trim()) {
       setMessage('No active session to logout.');
+      setMessageType('error');
       return;
     }
 
@@ -152,12 +158,14 @@ const TimeTracker = () => {
         setIsLoggedIn(false);
         setEmployeeId('');
         setEmployeeName('');
+        setMessageType('success');
         setMessage('Logout successful! Time recorded.');
       } else {
         throw new Error(responseData.message || 'Logout failed');
       }
     } catch (error) {
       console.error('Logout error:', error);
+      setMessageType('error');
       setMessage('Logout request sent. Check sheet to confirm.');
       localStorage.removeItem('workZenSession');
       setIsLoggedIn(false);
@@ -170,7 +178,7 @@ const TimeTracker = () => {
 
   const handleInputChange = (setter) => (e) => {
     setter(e.target.value);
-    setMessage('');
+    if (message) setMessage('');
   };
 
   const testConnection = async () => {
@@ -185,6 +193,7 @@ const TimeTracker = () => {
       try {
         const data = JSON.parse(text);
         setMessage('Connection successful: ' + (data.message || 'Test passed'));
+        setMessageType('success');
       } catch (e) {
         throw new Error('Invalid JSON response: ' + text);
       }
@@ -195,26 +204,14 @@ const TimeTracker = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Toast message={message} type={messageType} onDone={() => setMessage('')} />
       <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-md">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#ffc947] to-[#202426] bg-clip-text text-transparent">
             WORKZEN
           </h1>
           <p className="text-gray-600">Employee Attendence Tracking System</p>
-         
         </div>
-
-        {message && (
-          <div
-            className={`mb-4 p-3 rounded-lg text-center ${
-              message.includes('failed') || message.includes('Please enter')
-                ? 'bg-red-100 text-red-700 border border-red-200'
-                : 'bg-green-100 text-green-700 border border-green-200'
-            }`}
-          >
-            {message}
-          </div>
-        )}
 
         <form className="space-y-4" onSubmit={handleLogin}>
           <div>
@@ -290,8 +287,11 @@ const TimeTracker = () => {
           <p className="text-xs text-gray-400 text-center mt-1">
             Data is securely stored in Google Sheets
           </p>
-           <p className="mt-2 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
-            @ Developed by @Mahendra &amp; @Akshitha
+           <p className="mt-4 text-xs text-gray-500 text-center">
+            &copy; {new Date().getFullYear()} Zenbeta Technology. All rights reserved.
+          </p>
+          <p className="mt-1 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
+            Developed by Mahendra &amp; Akshitha
           </p>
         </div>
       </div>
