@@ -190,14 +190,11 @@ const TimeTracker = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">WORKZEN</h1>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#ffc947] to-[#202426] bg-clip-text text-transparent">
+            WORKZEN
+          </h1>
           <p className="text-gray-600">Employee Attendence Tracking System</p>
-          <button
-            onClick={testConnection}
-            className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-          >
-            Test Connection
-          </button>
+         
         </div>
 
         {message && (
@@ -285,6 +282,9 @@ const TimeTracker = () => {
           </p>
           <p className="text-xs text-gray-400 text-center mt-1">
             Data is securely stored in Google Sheets
+          </p>
+           <p className="mt-2 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
+            @ Developed by Mahendra &amp; Akshitha
           </p>
         </div>
       </div>
