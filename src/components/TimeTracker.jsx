@@ -190,14 +190,11 @@ const TimeTracker = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">WORKZEN</h1>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#ffc947] to-[#202426] bg-clip-text text-transparent">
+            WORKZEN
+          </h1>
           <p className="text-gray-600">Employee Attendence Tracking System</p>
-          <button
-            onClick={testConnection}
-            className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-          >
-            Test Connection
-          </button>
+         
         </div>
 
         {message && (
@@ -223,8 +220,8 @@ const TimeTracker = () => {
               value={employeeId}
               onChange={handleInputChange(setEmployeeId)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md 
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 
-                         focus:border-transparent"
+                         focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]
+                         hover:border-[#ffc947] transition-colors"
               placeholder="Enter your employee ID"
               required
               disabled={isLoggedIn || loading}
@@ -241,8 +238,8 @@ const TimeTracker = () => {
               value={employeeName}
               onChange={handleInputChange(setEmployeeName)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md 
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 
-                         focus:border-transparent"
+                         focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]
+                         hover:border-[#ffc947] transition-colors"
               placeholder="Enter your full name"
               required
               disabled={isLoggedIn || loading}
@@ -253,9 +250,9 @@ const TimeTracker = () => {
             <button
               type="submit"
               disabled={loading || isLoggedIn}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md 
-                         hover:bg-blue-700 focus:outline-none focus:ring-2 
-                         focus:ring-blue-500 focus:ring-offset-2 
+              className="flex-1 bg-[#ffc947] text-[#202426] py-2 px-4 rounded-md 
+                         hover:bg-[#202426] hover:text-[#ffc947] focus:outline-none focus:ring-2 
+                         focus:ring-[#ffc947] focus:ring-offset-2 
                          disabled:opacity-50 disabled:cursor-not-allowed 
                          transition-colors"
             >
@@ -266,9 +263,9 @@ const TimeTracker = () => {
               type="button"
               onClick={handleLogout}
               disabled={loading || !isLoggedIn}
-              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md 
-                         hover:bg-red-700 focus:outline-none focus:ring-2 
-                         focus:ring-red-500 focus:ring-offset-2 
+              className="flex-1 bg-[#202426] text-[#ffc947] py-2 px-4 rounded-md 
+                         hover:bg-[#ffc947] hover:text-[#202426] focus:outline-none focus:ring-2 
+                         focus:ring-[#202426] focus:ring-offset-2 
                          disabled:opacity-50 disabled:cursor-not-allowed 
                          transition-colors"
             >
@@ -285,6 +282,9 @@ const TimeTracker = () => {
           </p>
           <p className="text-xs text-gray-400 text-center mt-1">
             Data is securely stored in Google Sheets
+          </p>
+           <p className="mt-2 text-xs font-bold text-center" style={{ color: '#ffc947' }}>
+            @ Developed by Mahendra &amp; Akshitha
           </p>
         </div>
       </div>
