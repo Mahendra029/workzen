@@ -8,7 +8,6 @@ const TimeTracker = () => {
   const [message, setMessage] = useState('');
   const [sessionDuration, setSessionDuration] = useState('');
   const [currentSession, setCurrentSession] = useState(null);
-  const [sessionExpired, setSessionExpired] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZ6qL3u9tjWWAH2WXf_xMvlFSpnj963ZuS6BioH9JDKsToXItvIGr8RJ-EnLi630F_Q/exec';
@@ -18,15 +17,15 @@ const TimeTracker = () => {
     '240722': 'Priyanku Saikia',
     '240705': 'Priyanshu Rangari',
     '250421': 'Philip Meka',
-    '240940': 'Mandal Abhishek',
+    '240940': 'Abhishek Mandal',
     '250611': 'Vagmare Vidya Vardhan',
     '250302': 'Nemuri Swetha Lahari',
-    '250307': 'Mekala Akshitha',
+    '250307': 'Akshitha Mekala',
     '250305': 'Akanksha Bonike',
     '250507': 'Abhinav Kotagiri',
     '250321': 'Urkonda Ramanjaneyulu',
     '250521': 'Charan tridandapani',
-    '250610': 'Bandi Mahendra',
+    '250610': 'Mahendra Bandi',
     '250522': 'Bunga Pravalika'
   };
 
@@ -63,7 +62,7 @@ const TimeTracker = () => {
     }
   };
 
-  // Session timer effect
+  // Session timer effect - KEPT BUT WITHOUT AUTO-LOGOUT
   useEffect(() => {
     let interval;
     
@@ -72,29 +71,10 @@ const TimeTracker = () => {
       
       const startSessionTimer = () => {
         const loginDateTime = new Date(`${currentSession.date} ${currentSession.loginTime}`);
-        const maxSessionDuration = 9 * 60 * 60 * 1000; // 9 hours
-        const gracePeriod = 60 * 60 * 1000; // 1 hour grace
 
         const updateTimer = () => {
           const now = new Date();
           const diffMs = now - loginDateTime;
-          const totalAllowed = maxSessionDuration + gracePeriod;
-          
-          if (diffMs > totalAllowed) {
-            setSessionExpired(true);
-            showToast('Session expired! Please login again.', 'error');
-            handleAutoLogout();
-            return;
-          }
-
-          if (diffMs > maxSessionDuration) {
-            const graceTimeLeft = totalAllowed - diffMs;
-            const graceMinutes = Math.floor(graceTimeLeft / (1000 * 60));
-            const graceSeconds = Math.floor((graceTimeLeft % (1000 * 60)) / 1000);
-            
-            setSessionExpired(true);
-            setMessage(`⚠️ Session expired! Logout within ${graceMinutes}:${graceSeconds.toString().padStart(2, '0')}`);
-          }
 
           const hours = Math.floor(diffMs / (1000 * 60 * 60));
           const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -136,44 +116,6 @@ const TimeTracker = () => {
     } catch (error) {
       console.error('Error checking server session:', error);
       return false;
-    }
-  };
-
-  const handleAutoLogout = async () => {
-    if (!isLoggedIn || !employeeId.trim()) return;
-
-    try {
-      const currentDate = new Date();
-      const payload = {
-        action: 'logout',
-        employeeId: employeeId.trim(),
-        logoutTime: currentDate.toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
-        logoutDate: currentDate.toISOString().split('T')[0],
-        autoLogout: true
-      };
-
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      console.error('Auto-logout error:', error);
-    } finally {
-      localStorage.removeItem('workZenSession');
-      setIsLoggedIn(false);
-      setEmployeeId('');
-      setEmployeeName('');
-      setSessionDuration('');
-      setCurrentSession(null);
-      setSessionExpired(false);
     }
   };
 
@@ -270,7 +212,6 @@ const TimeTracker = () => {
         // Update state to enable logout button
         setIsLoggedIn(true);
         setCurrentSession(sessionData);
-        setSessionExpired(false);
         
         showToast('Session restored. You can now logout.', 'success');
         setLoading(false);
@@ -308,7 +249,6 @@ const TimeTracker = () => {
         // Update state
         setIsLoggedIn(true);
         setCurrentSession(sessionData);
-        setSessionExpired(false);
         showToast('Login successful! Timer started.', 'success');
       } else {
         throw new Error(responseData.message || 'Login failed');
@@ -376,7 +316,6 @@ const TimeTracker = () => {
         setEmployeeName('');
         setSessionDuration('');
         setCurrentSession(null);
-        setSessionExpired(false);
         showToast('Logout successful!', 'success');
       } else {
         throw new Error(responseData.message || 'Logout failed');
@@ -391,7 +330,6 @@ const TimeTracker = () => {
       setEmployeeName('');
       setSessionDuration('');
       setCurrentSession(null);
-      setSessionExpired(false);
     } finally {
       setLoading(false);
     }
@@ -428,7 +366,6 @@ const TimeTracker = () => {
       setEmployeeName('');
       setSessionDuration('');
       setCurrentSession(null);
-      setSessionExpired(false);
       showToast('Stuck session cleared! You can now login.', 'success');
     } catch (error) {
       showToast('Failed to clear session. Please try again.', 'error');
@@ -470,9 +407,7 @@ const TimeTracker = () => {
                 Employee ID *
               </label>
               {isLoggedIn && sessionDuration && (
-                <div className={`text-base font-mono font-bold ${
-                  sessionExpired ? 'text-red-600' : 'text-blue-800'
-                }`}>
+                <div className="text-base font-mono font-bold text-blue-800">
                   {sessionDuration}
                 </div>
               )}
@@ -557,16 +492,17 @@ const TimeTracker = () => {
         </form>
 
         {/* Clear stuck session button */}
-        {!isLoggedIn && employeeId && (
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleClearStuckSession}
-              className="text-xs text-red-600 hover:text-red-800 underline"
-            >
-              Clear stuck session?
-            </button>
-          </div>
-        )}
+        {/* {!isLoggedIn && employeeId && (
+          // <div className="mt-4 text-center">
+          //   <button
+          //     onClick={handleClearStuckSession}
+          //     className="text-xs text-red-600 hover:text-red-800 underline"
+          //   >
+          //     Clear stuck session?
+          //   </button>
+          // </div>
+        )} */
+        }
 
         <div className="mt-6 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
@@ -574,9 +510,6 @@ const TimeTracker = () => {
               ? `Session active for ${employeeName} (ID: ${employeeId})`
               : 'Enter your Employee ID to start tracking time'}
           </p>
-          {/* <p className="text-xs text-gray-400 text-center mt-1">
-            • Auto-logout after 9 hours • 1 hour grace period •
-          </p> */}
           <div className="mt-2 text-center">
             <p className="text-xs font-bold" style={{ color: '#ffc947' }}>
               @ Developed by Mahendra &amp; Akshitha
