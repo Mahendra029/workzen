@@ -448,7 +448,7 @@ const TimeTracker = () => {
                 className="w-full text-gray-700 bg-white border border-gray-300 hover:border-[#ffc947] focus:ring-2 focus:outline-none focus:ring-[#ffc947] font-medium rounded-lg text-sm px-3 py-2.5 text-left inline-flex items-center justify-between transition-colors disabled:opacity-50"
                 type="button"
               >
-                {employeeId ? `${employeeId} - ${employeeName}` : 'Select your ID'}
+                {employeeId || 'Select your ID'}
                 <svg className={`w-2.5 h-2.5 ms-3 transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
                 </svg>
@@ -504,7 +504,7 @@ const TimeTracker = () => {
               {loading && !isLoggedIn ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#202426] border-t-transparent mr-2"></div>
-                  Logging in...
+                  <span className="hidden sm:inline">Logging in...</span><span className="sm:hidden">Wait...</span>
                 </>
               ) : (
                 'Login'
@@ -524,7 +524,7 @@ const TimeTracker = () => {
               {loading && isLoggedIn ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#ffc947] border-t-transparent mr-2"></div>
-                  Logging out...
+                  <span className="hidden sm:inline">Logging out...</span><span className="sm:hidden">Wait...</span>
                 </>
               ) : (
                 'Logout'
