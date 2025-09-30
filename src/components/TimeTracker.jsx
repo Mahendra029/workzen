@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const TimeTracker = () => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -9,6 +10,7 @@ const TimeTracker = () => {
   const [sessionDuration, setSessionDuration] = useState('');
   const [currentSession, setCurrentSession] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const dropdownRef = useRef(null);
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZ6qL3u9tjWWAH2WXf_xMvlFSpnj963ZuS6BioH9JDKsToXItvIGr8RJ-EnLi630F_Q/exec';
 
@@ -39,6 +41,20 @@ const TimeTracker = () => {
 
   useEffect(() => {
     checkExistingSession();
+
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const checkExistingSession = async () => {
@@ -161,6 +177,18 @@ const TimeTracker = () => {
     }
     setMessage('');
   };
+
+  const handleDropdownSelect = (id) => {
+    setEmployeeId(id);
+    if (employeeData[id]) {
+      setEmployeeName(employeeData[id]);
+    } else {
+      setEmployeeName('');
+    }
+    setMessage('');
+    setIsDropdownOpen(false);
+  };
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -412,24 +440,38 @@ const TimeTracker = () => {
                 </div>
               )}
             </div>
-            <input
-              id="employeeId"
-              type="text"
-              value={employeeId}
-              onChange={handleEmployeeIdChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md 
-                         focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]
-                         hover:border-[#ffc947] transition-colors"
-              placeholder="Enter your employee ID"
-              required
-              disabled={loading}
-              list="employeeIds"
-            />
-            <datalist id="employeeIds">
-              {Object.keys(employeeData).map(id => (
-                <option key={id} value={id} />
-              ))}
-            </datalist>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                id="dropdownDefaultButton"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                disabled={loading}
+                className="w-full text-gray-700 bg-white border border-gray-300 hover:border-[#ffc947] focus:ring-2 focus:outline-none focus:ring-[#ffc947] font-medium rounded-lg text-sm px-3 py-2.5 text-left inline-flex items-center justify-between transition-colors disabled:opacity-50"
+                type="button"
+              >
+                {employeeId ? `${employeeId} - ${employeeName}` : 'Select your ID'}
+                <svg className={`w-2.5 h-2.5 ms-3 transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
+                </svg>
+              </button>
+
+              {isDropdownOpen && (
+                <div id="dropdown" className="z-10 absolute mt-1 bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full max-h-60 overflow-y-auto">
+                  <ul className="py-2 text-sm text-gray-700" aria-labelledby="dropdownDefaultButton">
+                    {Object.keys(employeeData).map((id) => (
+                      <li key={id}>
+                        <button
+                          type="button"
+                          onClick={() => handleDropdownSelect(id)}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        >
+                          {id}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
