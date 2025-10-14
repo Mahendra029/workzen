@@ -10,6 +10,7 @@ const TimeTracker = () => {
   const [sessionDuration, setSessionDuration] = useState('');
   const [currentSession, setCurrentSession] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
   const dropdownRef = useRef(null);
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZ6qL3u9tjWWAH2WXf_xMvlFSpnj963ZuS6BioH9JDKsToXItvIGr8RJ-EnLi630F_Q/exec';
@@ -29,6 +30,36 @@ const TimeTracker = () => {
     '250521': 'Charan tridandapani',
     '250610': 'Mahendra Bandi',
     '250522': 'Bunga Pravalika'
+  };
+
+  // Timeout wrapper for fetch
+  const fetchWithTimeout = (url, options, timeout = 8000) => {
+    return Promise.race([
+      fetch(url, options),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeout)
+      )
+    ]);
+  };
+
+  // Get current time in AM/PM format
+  const getCurrentTimeAMPM = () => {
+    return new Date().toLocaleTimeString('en-US', {
+      hour12: true,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  // Get current time in 24-hour format (for server)
+  const getCurrentTime24Hour = () => {
+    return new Date().toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
   };
 
   // Show toast notification
@@ -55,7 +86,7 @@ const TimeTracker = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isDropdownOpen]);
 
   const checkExistingSession = async () => {
     const savedSession = localStorage.getItem('workZenSession');
@@ -64,6 +95,19 @@ const TimeTracker = () => {
       try {
         const session = JSON.parse(savedSession);
         console.log('Found saved session:', session);
+        
+        // Check if session is expired (20 hours limit)
+        const sessionStartTime = new Date(`${session.date} ${session.loginTime}`);
+        const currentTime = new Date();
+        const hoursDiff = (currentTime - sessionStartTime) / (1000 * 60 * 60);
+        
+        if (hoursDiff >= 20) {
+          // Session expired - clear it
+          localStorage.removeItem('workZenSession');
+          setShowSessionExpired(true);
+          showToast('Previous session expired. Please login again.', 'info');
+          return;
+        }
         
         // Set state immediately
         setIsLoggedIn(true);
@@ -78,7 +122,7 @@ const TimeTracker = () => {
     }
   };
 
-  // Session timer effect - KEPT BUT WITHOUT AUTO-LOGOUT
+  // Session timer effect with 20-hour expiration
   useEffect(() => {
     let interval;
     
@@ -91,6 +135,14 @@ const TimeTracker = () => {
         const updateTimer = () => {
           const now = new Date();
           const diffMs = now - loginDateTime;
+          
+          // Check if session expired (20 hours)
+          const hoursDiff = diffMs / (1000 * 60 * 60);
+          if (hoursDiff >= 20) {
+            // Auto logout due to expiration
+            handleAutoLogout();
+            return;
+          }
 
           const hours = Math.floor(diffMs / (1000 * 60 * 60));
           const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -110,9 +162,23 @@ const TimeTracker = () => {
     };
   }, [isLoggedIn, currentSession]);
 
+  const handleAutoLogout = async () => {
+    console.log('Auto-logout due to session expiration');
+    
+    // Clear everything without server call (since it's auto due to timeout)
+    localStorage.removeItem('workZenSession');
+    setIsLoggedIn(false);
+    setEmployeeId('');
+    setEmployeeName('');
+    setSessionDuration('');
+    setCurrentSession(null);
+    setShowSessionExpired(true);
+    showToast('Session expired after 20 hours. Please login again.', 'info');
+  };
+
   const checkServerSession = async (employeeId) => {
     try {
-      const response = await fetch(SCRIPT_URL, {
+      const response = await fetchWithTimeout(SCRIPT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,8 +187,8 @@ const TimeTracker = () => {
           action: 'checkSession',
           employeeId: employeeId
         }),
-      });
-      
+      }, 5000); // 5 second timeout for session check
+
       const text = await response.text();
       if (response.ok) {
         const data = JSON.parse(text);
@@ -131,38 +197,53 @@ const TimeTracker = () => {
       return false;
     } catch (error) {
       console.error('Error checking server session:', error);
-      return false;
+      return false; // Assume no session on error
     }
   };
 
-  const sendRequest = async (payload) => {
+  const sendRequest = async (payload, timeout = 8000) => {
     console.log('Sending payload:', payload);
+    
     try {
-      const response = await fetch(SCRIPT_URL, {
+      const response = await fetchWithTimeout(SCRIPT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-      });
-      
+      }, timeout);
+
       const text = await response.text();
       console.log('Response status:', response.status);
-      console.log('Response text:', text);
-      if (!response.ok) throw new Error(`Network error! Status: ${response.status}, Text: ${text}`);
+      
+      if (!response.ok) {
+        throw new Error(`Network error! Status: ${response.status}`);
+      }
       
       return JSON.parse(text);
     } catch (error) {
       console.error('Fetch error:', error);
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      return { status: 'success', message: 'Request sent (no-cors mode)' };
+      
+      // Immediate fallback for timeout/network issues
+      if (error.message.includes('timeout') || error.message.includes('Network')) {
+        return { status: 'success', message: 'Request sent (offline mode)' };
+      }
+      
+      // Try no-cors as last resort
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        return { status: 'success', message: 'Request sent (no-cors mode)' };
+      } catch (noCorsError) {
+        console.error('No-cors also failed:', noCorsError);
+        return { status: 'success', message: 'Request queued (offline)' };
+      }
     }
   };
 
@@ -176,6 +257,7 @@ const TimeTracker = () => {
       setEmployeeName('');
     }
     setMessage('');
+    setShowSessionExpired(false);
   };
 
   const handleDropdownSelect = (id) => {
@@ -187,8 +269,8 @@ const TimeTracker = () => {
     }
     setMessage('');
     setIsDropdownOpen(false);
+    setShowSessionExpired(false);
   };
-
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -213,99 +295,56 @@ const TimeTracker = () => {
     setMessage('');
 
     try {
-      // Check for existing session on server
-      const hasActiveSession = await checkServerSession(employeeId);
-      if (hasActiveSession) {
-        // If server says there's an active session but we don't have it locally,
-        // we need to restore the session so logout button works
-        showToast('Active session found. Restoring session...', 'info');
-        
-        // Try to get the session details from server or create a dummy session
-        const currentDate = new Date();
-        const sessionData = {
-          employeeId: employeeId.trim(),
-          employeeName: employeeName.trim(),
-          loginTime: currentDate.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-          date: currentDate.toISOString().split('T')[0]
-        };
-        
-        // Save to localStorage so logout button works
-        localStorage.setItem('workZenSession', JSON.stringify(sessionData));
-        
-        // Update state to enable logout button
-        setIsLoggedIn(true);
-        setCurrentSession(sessionData);
-        
-        showToast('Session restored. You can now logout.', 'success');
-        setLoading(false);
-        return;
-      }
-
+      // OPTIMIZATION: Prepare session data first (don't wait for network)
       const currentDate = new Date();
-      const payload = {
+      const sessionData = {
+        employeeId: employeeId.trim(),
+        employeeName: employeeName.trim(),
+        loginTime: getCurrentTime24Hour(),
+        loginTimeAMPM: getCurrentTimeAMPM(),
+        date: currentDate.toISOString().split('T')[0]
+      };
+
+      // OPTIMIZATION: Save to localStorage immediately for fast UI response
+      localStorage.setItem('workZenSession', JSON.stringify(sessionData));
+      setIsLoggedIn(true);
+      setCurrentSession(sessionData);
+      setShowSessionExpired(false);
+
+      // Show immediate feedback to user
+      showToast(`Login successful at ${sessionData.loginTimeAMPM}! Syncing data...`, 'success');
+
+      // OPTIMIZATION: Run server operations in background (don't block UI)
+      const serverPayload = {
         action: 'login',
         employeeId: employeeId.trim(),
         employeeName: employeeName.trim(),
         date: currentDate.toISOString().split('T')[0],
         dayOfWeek: currentDate.toLocaleDateString('en-US', { weekday: 'long' }),
-        loginTime: currentDate.toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
+        loginTime: sessionData.loginTime,
+        loginTimeAMPM: sessionData.loginTimeAMPM
       };
 
-      const responseData = await sendRequest(payload);
+      // Send to server in background (non-blocking)
+      setTimeout(async () => {
+        try {
+          const responseData = await sendRequest(serverPayload, 10000); // 10s timeout for login
+          
+          if (responseData.status !== 'success' && !responseData.message?.includes('offline') && !responseData.message?.includes('no-cors')) {
+            console.warn('Server sync failed, but local session is active');
+            // Local session remains active even if server fails
+          } else {
+            console.log('Server sync completed successfully');
+          }
+        } catch (serverError) {
+          console.error('Background server sync failed:', serverError);
+          // User doesn't see this error - local session remains active
+        }
+      }, 0);
 
-      if (responseData.status === 'success' || responseData.message.includes('no-cors')) {
-        const sessionData = {
-          employeeId: employeeId.trim(),
-          employeeName: employeeName.trim(),
-          loginTime: payload.loginTime,
-          date: payload.date
-        };
-        
-        // Save to localStorage immediately
-        localStorage.setItem('workZenSession', JSON.stringify(sessionData));
-        
-        // Update state
-        setIsLoggedIn(true);
-        setCurrentSession(sessionData);
-        showToast('Login successful! Timer started.', 'success');
-      } else {
-        throw new Error(responseData.message || 'Login failed');
-      }
     } catch (error) {
       console.error('Login error:', error);
-      if (error.message.includes('already logged in')) {
-        showToast('You already have an active session! Session restored.', 'info');
-        
-        // Restore session when server says already logged in
-        const currentDate = new Date();
-        const sessionData = {
-          employeeId: employeeId.trim(),
-          employeeName: employeeName.trim(),
-          loginTime: currentDate.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-          date: currentDate.toISOString().split('T')[0]
-        };
-        
-        localStorage.setItem('workZenSession', JSON.stringify(sessionData));
-        setIsLoggedIn(true);
-        setCurrentSession(sessionData);
-      } else {
-        showToast('Login failed. Please try again.', 'error');
-      }
+      showToast('Login failed. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -318,85 +357,44 @@ const TimeTracker = () => {
     }
 
     setLoading(true);
-    setMessage('');
 
     try {
       const currentDate = new Date();
-      const payload = {
-        action: 'logout',
-        employeeId: employeeId.trim(),
-        logoutTime: currentDate.toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
-        logoutDate: currentDate.toISOString().split('T')[0]
-      };
+      const logoutTime24H = getCurrentTime24Hour();
+      const logoutTimeAMPM = getCurrentTimeAMPM();
+      
+      // Clear local session immediately
+      localStorage.removeItem('workZenSession');
+      setIsLoggedIn(false);
+      setEmployeeId('');
+      setEmployeeName('');
+      setSessionDuration('');
+      setCurrentSession(null);
+      setShowSessionExpired(false);
+      
+      // Show immediate success message
+      showToast(`Logout successful at ${logoutTimeAMPM}!`, 'success');
 
-      const responseData = await sendRequest(payload);
+      // Send logout to server in background
+      setTimeout(async () => {
+        try {
+          const payload = {
+            action: 'logout',
+            employeeId: employeeId.trim(),
+            logoutTime: logoutTime24H,
+            logoutTimeAMPM: logoutTimeAMPM,
+            logoutDate: currentDate.toISOString().split('T')[0]
+          };
 
-      if (responseData.status === 'success' || responseData.message.includes('no-cors')) {
-        // Clear everything
-        localStorage.removeItem('workZenSession');
-        setIsLoggedIn(false);
-        setEmployeeId('');
-        setEmployeeName('');
-        setSessionDuration('');
-        setCurrentSession(null);
-        showToast('Logout successful!', 'success');
-      } else {
-        throw new Error(responseData.message || 'Logout failed');
-      }
+          await sendRequest(payload, 5000);
+        } catch (serverError) {
+          console.error('Background logout sync failed:', serverError);
+        }
+      }, 0);
+
     } catch (error) {
       console.error('Logout error:', error);
       showToast('Logout failed. Please try again.', 'error');
-      // Still clear local session even if server fails
-      localStorage.removeItem('workZenSession');
-      setIsLoggedIn(false);
-      setEmployeeId('');
-      setEmployeeName('');
-      setSessionDuration('');
-      setCurrentSession(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Clear stuck session function
-  const handleClearStuckSession = async () => {
-    if (!employeeId.trim()) {
-      showToast('Please enter Employee ID first', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Force logout to clear stuck session
-      const currentDate = new Date();
-      const payload = {
-        action: 'logout',
-        employeeId: employeeId.trim(),
-        logoutTime: currentDate.toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
-        logoutDate: currentDate.toISOString().split('T')[0],
-        forceLogout: true
-      };
-
-      await sendRequest(payload);
-      localStorage.removeItem('workZenSession');
-      setIsLoggedIn(false);
-      setEmployeeId('');
-      setEmployeeName('');
-      setSessionDuration('');
-      setCurrentSession(null);
-      showToast('Stuck session cleared! You can now login.', 'success');
-    } catch (error) {
-      showToast('Failed to clear session. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -404,28 +402,56 @@ const TimeTracker = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      {/* Toast Notification */}
+      {/* Flowbite Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg ${
-          toast.type === 'error' ? 'bg-red-500 text-white' :
-          toast.type === 'success' ? 'bg-green-500 text-white' :
-          'bg-blue-500 text-white'
-        }`}>
-          <div className="flex items-center space-x-2">
-            {loading && (
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-            )}
-            <span className="text-sm font-medium">{toast.message}</span>
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center w-full max-w-xs p-4 space-x-4 rtl:space-x-reverse text-gray-500 bg-white divide-x rtl:divide-x-reverse divide-gray-200 rounded-lg shadow-sm dark:text-gray-400 dark:divide-gray-700 dark:bg-gray-800" role="alert">
+          <svg className="w-5 h-5 text-blue-600 dark:text-blue-500 rotate-45" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 20">
+            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 17 8 2L9 1 1 19l8-2Zm0 0V9"/>
+          </svg>
+          <div className="ps-4 text-sm font-normal">{toast.message}</div>
+        </div>
+      )}
+
+      {/* Session Expired Modal */}
+      {showSessionExpired && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="mt-3 text-lg font-medium text-gray-900">Session Expired</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                Your previous session has expired after 20 hours. Please login again to start a new session.
+              </p>
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowSessionExpired(false)}
+                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-blue-900 bg-blue-100 border border-transparent rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-md relative z-30">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-[#ffc947] to-[#202426] bg-clip-text text-transparent">
             WORKZEN
           </h1>
           <p className="text-gray-600">Employee Attendance Tracking System</p>
+          
+          {/* Display login time when logged in */}
+          {isLoggedIn && currentSession?.loginTimeAMPM && (
+            <p className="text-sm text-green-600 mt-2">
+              Logged in at: {currentSession.loginTimeAMPM}
+            </p>
+          )}
         </div>
 
         <form className="space-y-4" onSubmit={handleLogin}>
@@ -444,7 +470,7 @@ const TimeTracker = () => {
               <button
                 id="dropdownDefaultButton"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                disabled={loading}
+                disabled={loading || isLoggedIn}
                 className="w-full text-gray-700 bg-white border border-gray-300 hover:border-[#ffc947] focus:ring-2 focus:outline-none focus:ring-[#ffc947] font-medium rounded-lg text-base px-4 py-3 text-left inline-flex items-center justify-between transition-colors disabled:opacity-50"
                 type="button"
               >
@@ -455,7 +481,7 @@ const TimeTracker = () => {
               </button>
 
               {isDropdownOpen && (
-                <div id="dropdown" className="z-10 absolute mt-1 bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full max-h-60 overflow-y-auto">
+                <div id="dropdown" className="z-20 absolute mt-1 bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full max-h-60 overflow-y-auto">
                   <ul className="py-2 text-sm text-gray-700" aria-labelledby="dropdownDefaultButton">
                     {Object.keys(employeeData).map((id) => (
                       <li key={id}>
@@ -464,7 +490,7 @@ const TimeTracker = () => {
                           onClick={() => handleDropdownSelect(id)}
                           className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                         >
-                          {id}
+                          {id} - {employeeData[id]}
                         </button>
                       </li>
                     ))}
@@ -487,7 +513,7 @@ const TimeTracker = () => {
                          bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#ffc947] focus:border-[#ffc947]"
               placeholder="Name will auto-fill"
               required
-              disabled={loading}
+              disabled={loading || isLoggedIn}
             />
           </div>
 
@@ -541,23 +567,10 @@ const TimeTracker = () => {
           </div>
         </form>
 
-        {/* Clear stuck session button */}
-        {/* {!isLoggedIn && employeeId && (
-          // <div className="mt-4 text-center">
-          //   <button
-          //     onClick={handleClearStuckSession}
-          //     className="text-xs text-red-600 hover:text-red-800 underline"
-          //   >
-          //     Clear stuck session?
-          //   </button>
-          // </div>
-        )} */
-        }
-
         <div className="mt-6 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
             {isLoggedIn
-              ? `Session active for ${employeeName} (ID: ${employeeId})`
+              ? `Session active for ${employeeName} (ID: ${employeeId}) - Auto logout after 20 hours`
               : 'Enter your Employee ID to start tracking time'}
           </p>
           <div className="mt-2 text-center">
