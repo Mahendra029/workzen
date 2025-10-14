@@ -423,9 +423,6 @@ const TimeTracker = () => {
                 </svg>
               </div>
               <h3 className="mt-3 text-lg font-medium text-gray-900">Session Expired</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Your previous session has expired after 20 hours. Please login again to start a new session.
-              </p>
               <div className="mt-4">
                 <button
                   onClick={() => setShowSessionExpired(false)}
@@ -570,7 +567,7 @@ const TimeTracker = () => {
         <div className="mt-6 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
             {isLoggedIn
-              ? `Session active for ${employeeName} (ID: ${employeeId}) - Auto logout after 20 hours`
+              ? `Session active for ${employeeName} (ID: ${employeeId})`
               : 'Enter your Employee ID to start tracking time'}
           </p>
           <div className="mt-2 text-center">
