@@ -97,11 +97,12 @@ const TimeTracker = () => {
         console.log('Found saved session:', session);
         
         // Check if session is expired (20 hours limit)
+        // Check if session is expired (16 hours limit)
         const sessionStartTime = new Date(`${session.date} ${session.loginTime}`);
         const currentTime = new Date();
-        const hoursDiff = (currentTime - sessionStartTime) / (1000 * 60 * 60);
+        const hoursDiff = (currentTime - sessionStartTime) / (1000 * 60 * 60); // 16 hours
         
-        if (hoursDiff >= 20) {
+        if (hoursDiff >= 16) {
           // Session expired - clear it
           localStorage.removeItem('workZenSession');
           setShowSessionExpired(true);
@@ -123,6 +124,7 @@ const TimeTracker = () => {
   };
 
   // Session timer effect with 20-hour expiration
+  // Session timer effect with 16-hour expiration
   useEffect(() => {
     let interval;
     
@@ -136,9 +138,9 @@ const TimeTracker = () => {
           const now = new Date();
           const diffMs = now - loginDateTime;
           
-          // Check if session expired (20 hours)
-          const hoursDiff = diffMs / (1000 * 60 * 60);
-          if (hoursDiff >= 20) {
+          // Check if session expired (16 hours)
+          const hoursDiff = diffMs / (1000 * 60 * 60); // 16 hours
+          if (hoursDiff >= 16) {
             // Auto logout due to expiration
             handleAutoLogout();
             return;
@@ -173,7 +175,7 @@ const TimeTracker = () => {
     setSessionDuration('');
     setCurrentSession(null);
     setShowSessionExpired(true);
-    showToast('Session expired after 20 hours. Please login again.', 'info');
+    showToast('Session expired after 16 hours. Please login again.', 'info');
   };
 
   const checkServerSession = async (employeeId) => {
@@ -356,6 +358,12 @@ const TimeTracker = () => {
       return;
     }
 
+    // Check if session has already expired locally before attempting to logout
+    if (!currentSession) {
+      showToast('Your session has expired. Please login again.', 'info');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -471,7 +479,7 @@ const TimeTracker = () => {
                 className="w-full text-gray-700 bg-white border border-gray-300 hover:border-[#ffc947] focus:ring-2 focus:outline-none focus:ring-[#ffc947] font-medium rounded-lg text-base px-4 py-3 text-left inline-flex items-center justify-between transition-colors disabled:opacity-50"
                 type="button"
               >
-                {employeeId || 'Select your ID'}
+                {employeeId ? `${employeeId}` : 'Select your ID'}
                 <svg className={`w-2.5 h-2.5 ms-3 transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
                 </svg>
@@ -487,7 +495,7 @@ const TimeTracker = () => {
                           onClick={() => handleDropdownSelect(id)}
                           className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                         >
-                          {id} - {employeeData[id]}
+                          {id}
                         </button>
                       </li>
                     ))}
