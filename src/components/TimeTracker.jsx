@@ -10,7 +10,6 @@ const TimeTracker = () => {
   const [sessionDuration, setSessionDuration] = useState('');
   const [currentSession, setCurrentSession] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
-  const [showSessionExpired, setShowSessionExpired] = useState(false);
   const dropdownRef = useRef(null);
 
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvZ6qL3u9tjWWAH2WXf_xMvlFSpnj963ZuS6BioH9JDKsToXItvIGr8RJ-EnLi630F_Q/exec';
@@ -96,17 +95,14 @@ const TimeTracker = () => {
         const session = JSON.parse(savedSession);
         console.log('Found saved session:', session);
         
-        // Check if session is expired (20 hours limit)
         // Check if session is expired (16 hours limit)
         const sessionStartTime = new Date(`${session.date} ${session.loginTime}`);
         const currentTime = new Date();
-        const hoursDiff = (currentTime - sessionStartTime) / (1000 * 60 * 60); // 16 hours
+        const hoursDiff = (currentTime - sessionStartTime) / (1000 * 60 * 60);
         
         if (hoursDiff >= 16) {
-          // Session expired - clear it
+          // Session expired - clear it silently
           localStorage.removeItem('workZenSession');
-          setShowSessionExpired(true);
-          showToast('Previous session expired. Please login again.', 'info');
           return;
         }
         
@@ -123,7 +119,6 @@ const TimeTracker = () => {
     }
   };
 
-  // Session timer effect with 20-hour expiration
   // Session timer effect with 16-hour expiration
   useEffect(() => {
     let interval;
@@ -139,7 +134,7 @@ const TimeTracker = () => {
           const diffMs = now - loginDateTime;
           
           // Check if session expired (16 hours)
-          const hoursDiff = diffMs / (1000 * 60 * 60); // 16 hours
+          const hoursDiff = diffMs / (1000 * 60 * 60);
           if (hoursDiff >= 16) {
             // Auto logout due to expiration
             handleAutoLogout();
@@ -174,8 +169,6 @@ const TimeTracker = () => {
     setEmployeeName('');
     setSessionDuration('');
     setCurrentSession(null);
-    setShowSessionExpired(true);
-    showToast('Session expired after 16 hours. Please login again.', 'info');
   };
 
   const checkServerSession = async (employeeId) => {
@@ -259,7 +252,6 @@ const TimeTracker = () => {
       setEmployeeName('');
     }
     setMessage('');
-    setShowSessionExpired(false);
   };
 
   const handleDropdownSelect = (id) => {
@@ -271,7 +263,6 @@ const TimeTracker = () => {
     }
     setMessage('');
     setIsDropdownOpen(false);
-    setShowSessionExpired(false);
   };
 
   const handleLogin = async (e) => {
@@ -311,7 +302,6 @@ const TimeTracker = () => {
       localStorage.setItem('workZenSession', JSON.stringify(sessionData));
       setIsLoggedIn(true);
       setCurrentSession(sessionData);
-      setShowSessionExpired(false);
 
       // Show immediate feedback to user
       showToast(`Login successful at ${sessionData.loginTimeAMPM}! Syncing data...`, 'success');
@@ -360,7 +350,6 @@ const TimeTracker = () => {
 
     // Check if session has already expired locally before attempting to logout
     if (!currentSession) {
-      showToast('Your session has expired. Please login again.', 'info');
       return;
     }
 
@@ -378,7 +367,6 @@ const TimeTracker = () => {
       setEmployeeName('');
       setSessionDuration('');
       setCurrentSession(null);
-      setShowSessionExpired(false);
       
       // Show immediate success message
       showToast(`Logout successful at ${logoutTimeAMPM}!`, 'success');
@@ -417,30 +405,6 @@ const TimeTracker = () => {
             <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 17 8 2L9 1 1 19l8-2Zm0 0V9"/>
           </svg>
           <div className="ps-4 text-sm font-normal">{toast.message}</div>
-        </div>
-      )}
-
-      {/* Session Expired Modal */}
-      {showSessionExpired && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="mt-3 text-lg font-medium text-gray-900">Session Expired</h3>
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowSessionExpired(false)}
-                  className="inline-flex justify-center px-4 py-2 text-sm font-medium text-blue-900 bg-blue-100 border border-transparent rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
